@@ -19,5 +19,68 @@
     "hearts": 2,
     "createdAt": "2025-06-13T20:00:00Z",
     "category": "Food"
+  },
+  {
+    "id": 4,
+    "message": "I made progress on my project!",
+    "hearts": 10,
+    "createdAt": "2025-06-14T15:30:00Z",
+    "category": "Work"
+  },
+  {
+    "id": 5,
+    "message": "I had the best ramen today 🍜",
+    "hearts": 2,
+    "createdAt": "2025-06-13T20:00:00Z",
+    "category": "Food"
+  },
+  {
+    "id": 6,
+    "message": "I learned something new today! 📚",
+    "hearts": 8,
+    "createdAt": "2025-06-12T12:00:00Z",
+    "category": "Education"
+  },
+  {
+    "id": 7,
+    "message": "I went for a long walk in the park 🌳",
+    "hearts": 3,
+    "createdAt": "2025-06-11T08:30:00Z",
+    "category": "Health"
+  },
+  {
+    "id": 8,
+    "message": "I had a great time with friends last night! 🎉",
+    "hearts": 12,
+    "createdAt": "2025-06-10T22:00:00Z",
+    "category": "Social"
+  },
+  {
+    "id": 9,
+    "message": "I finished reading a fantastic book 📖",
+    "hearts": 6,
+    "createdAt": "2025-06-09T18:45:00Z",
+    "category": "Leisure"
+  },
+  {
+    "id": 10,
+    "message": "I tried a new recipe and it was delicious! 🍽️",
+    "hearts": 4,
+    "createdAt": "2025-06-08T14:15:00Z",
+    "category": "Food"
+  },
+  {
+    "id": 11,
+    "message": "I completed a challenging workout today! 💪",
+    "hearts": 7,
+    "createdAt": "2025-06-07T16:00:00Z",
+    "category": "Health"
+  },
+  {
+    "id": 12,
+    "message": "I had a productive day at work! 🖥️",
+    "hearts": 9,
+    "createdAt": "2025-06-06T11:30:00Z",
+    "category": "Work"
   }
 ]

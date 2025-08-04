@@ -1,5 +1,7 @@
 import cors from "cors";
 import express from "express";
+import listEndpoints from "express-list-endpoints";
+import fs from "fs";
 
 // Defines the port the app will run on. Defaults to 8080, but can be overridden
 // when starting the server. Example command to overwrite PORT env variable value:
@@ -19,11 +21,36 @@ app.get("/", (req, res) => {
 });
 
 app.get("/thoughts", (req, res) => {
-  res.json([
-    { id: 1, name: "Alice" },
-    { id: 2, name: "Bob" },
-    { id: 3, name: "Charlie" },
-  ]);
+  let result = [...thoughts];
+ const { heartsMin, category, sortBy, page, limit } = req.query;
+
+  if (heartsMin) {
+    result = result.filter(t => t.hearts >= parseInt(heartsMin));
+  }
+
+  if (category) {
+    result = result.filter(t => t.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (sortBy === "hearts") {
+    result.sort((a, b) => b.hearts - a.hearts);
+  } else if (sortBy === "date") {
+    result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  // Pagination
+  const pageInt = parseInt(page) || 1;
+  const limitInt = parseInt(limit) || result.length;
+  const start = (pageInt - 1) * limitInt;
+  const end = start + limitInt;
+
+  const paginated = result.slice(start, end);
+
+  res.json({
+    page: pageInt,
+    total: result.length,
+    results: paginated
+  });
 });
 
 // Start the server
