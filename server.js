@@ -53,6 +53,17 @@ app.get("/thoughts", (req, res) => {
   });
 });
 
+app.get("/thoughts/:id", (req, res) => {
+  const { id } = req.params;
+  const thought = thoughts.find(t => t.id === parseInt(id));
+
+  if (!thought) {
+    return res.status(404).json({ error: "Thought not found." });
+  }
+
+  res.json(thought);
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
