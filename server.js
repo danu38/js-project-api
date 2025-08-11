@@ -13,11 +13,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let thoughts = JSON.parse(fs.readFileSync('./data.json'));
+let thoughts = JSON.parse(fs.readFileSync('./data.json'));       
 
 // Start defining routes here
 app.get("/", (req, res) => {
   res.send("Welcome to the Happy Thoughts API 💬");
+  endpoints: listEndpoints(app)
 });
 
 app.get("/thoughts", (req, res) => {
