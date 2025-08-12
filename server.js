@@ -55,44 +55,49 @@ const thoughtSchema = new mongoose.Schema({
 const Thought = mongoose.model("Thought", thoughtSchema);
 
 
-// Start defining routes here
+// API Docs----- Routes -----
 app.get("/", (req, res) => {
-  res.send("Welcome to the Happy Thoughts API 💬");
-  endpoints: listEndpoints(app)
-});
-
-app.get("/thoughts", (req, res) => {
-  let result = [...thoughts];
- const { heartsMin, category, sortBy, page, limit } = req.query;
-
-  if (heartsMin) {
-    result = result.filter(t => t.hearts >= parseInt(heartsMin));
-  }
-
-  if (category) {
-    result = result.filter(t => t.category.toLowerCase() === category.toLowerCase());
-  }
-
-  if (sortBy === "hearts") {
-    result.sort((a, b) => b.hearts - a.hearts);
-  } else if (sortBy === "date") {
-    result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }
-
-  // Pagination
-  const pageInt = parseInt(page) || 1;
-  const limitInt = parseInt(limit) || result.length;
-  const start = (pageInt - 1) * limitInt;
-  const end = start + limitInt;
-
-  const paginated = result.slice(start, end);
-
   res.json({
-    page: pageInt,
-    total: result.length,
-    results: paginated
+    message: "Welcome to the Happy Thoughts API 💬",
+    endpoints: listEndpoints(app)
   });
 });
+
+// Get all thoughts (with filtering, sorting, pagination)
+app.get("/thoughts", async (req, res) => {
+  try {
+    const { heartsMin, category, sortBy, page, limit } = req.query;
+    let query = {};
+
+    if (heartsMin) {
+      query.hearts = { $gte: parseInt(heartsMin) };
+    }
+    if (category) {
+      query.category = category;
+    }
+
+    let sort = {};
+    if (sortBy === "hearts") sort.hearts = -1;
+    if (sortBy === "date") sort.createdAt = -1;
+
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 20;
+    const skip = (pageInt - 1) * limitInt;
+
+    const thoughts = await Thought.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitInt);
+
+    res.json({
+      page: pageInt,
+      results: thoughts
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch thoughts" });
+  }
+});
+
 
 app.get("/thoughts/:id", (req, res) => {
   const { id } = req.params;
