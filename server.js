@@ -3,6 +3,13 @@ import express from "express";
 import listEndpoints from "express-list-endpoints";
 import fs from "fs";
 import mongoose from 'mongoose';
+import dotenv from "dotenv";
+
+
+// Load environment variables from .env file
+// This allows you to set environment variables like PORT and MONGO_URL
+// in a .env file for local development
+dotenv.config();
 
 // Defines the port the app will run on. Defaults to 8080, but can be overridden
 // when starting the server. Example command to overwrite PORT env variable value:
@@ -17,23 +24,35 @@ app.use(express.json());
 let thoughts = JSON.parse(fs.readFileSync('./data.json'));     
 
 
+const mongoUrl = process.env.MONGO_URL || "mongodb://localhost:27017/happythoughts";
 
+// Connect to MongoDB
+mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.Promise = Promise;
 
-const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/books"
-mongoose.connect(mongoUrl)
-mongoose.Promise = Promise
-
-const Author = mongoose.model('Author', {
-  name: String
-})
-
-const Book = mongoose.model('Book', {
-  title: String,
-  author: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Author'
+// ----- Mongoose Schema -----
+const thoughtSchema = new mongoose.Schema({
+  message: {
+    type: String,
+    required: [true, "Message is required"],
+    minlength: [5, "Message must be at least 5 characters"],
+    maxlength: [140, "Message must be max 140 characters"]
+  },
+  hearts: {
+    type: Number,
+    default: 0
+  },
+  category: {
+    type: String,
+    default: "General"
+  },
+  createdAt: {
+    type: Date,
+    default: () => new Date()
   }
-})
+});
+
+const Thought = mongoose.model("Thought", thoughtSchema);
 
 
 // Start defining routes here
