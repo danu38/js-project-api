@@ -21,7 +21,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let thoughts = JSON.parse(fs.readFileSync('./data.json'));     
+//let thoughts = JSON.parse(fs.readFileSync('./data.json'));     
 
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost:27017/happythoughts";
@@ -99,15 +99,76 @@ app.get("/thoughts", async (req, res) => {
 });
 
 
-app.get("/thoughts/:id", (req, res) => {
-  const { id } = req.params;
-  const thought = thoughts.find(t => t.id === parseInt(id));
-
-  if (!thought) {
-    return res.status(404).json({ error: "Thought not found." });
+// Get single thought
+app.get("/thoughts/:id", async (req, res) => {
+  try {
+    const thought = await Thought.findById(req.params.id);
+    if (!thought) {
+      return res.status(404).json({ error: "Thought not found" });
+    }
+    res.json(thought);
+  } catch {
+    res.status(400).json({ error: "Invalid ID" });
   }
+});
 
-  res.json(thought);
+// Create a new thought
+app.post("/thoughts", async (req, res) => {
+  try {
+    const { message, category } = req.body;
+    const newThought = new Thought({ message, category });
+    const savedThought = await newThought.save();
+    res.status(201).json(savedThought);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Update a thought
+app.put("/thoughts/:id", async (req, res) => {
+  try {
+    const updatedThought = await Thought.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!updatedThought) {
+      return res.status(404).json({ error: "Thought not found" });
+    }
+    res.json(updatedThought);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete a thought
+app.delete("/thoughts/:id", async (req, res) => {
+  try {
+    const deletedThought = await Thought.findByIdAndDelete(req.params.id);
+    if (!deletedThought) {
+      return res.status(404).json({ error: "Thought not found" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Like a thought
+app.post("/thoughts/:id/like", async (req, res) => {
+  try {
+    const thought = await Thought.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { hearts: 1 } },
+      { new: true }
+    );
+    if (!thought) {
+      return res.status(404).json({ error: "Thought not found" });
+    }
+    res.json(thought);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // Start the server
