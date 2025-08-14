@@ -1,13 +1,15 @@
 import cors from "cors";
 import express from "express";
 import listEndpoints from "express-list-endpoints";
-import fs from "fs";
+import fs, { access } from "fs";
 import mongoose from 'mongoose';
 import dotenv from "dotenv";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 
 // Load environment variables from .env file
-// This allows you to set environment variables like PORT and MONGO_URL
+// This allows  to set environment variables like PORT and MONGO_URL
 // in a .env file for local development
 dotenv.config();
 
@@ -53,6 +55,91 @@ const thoughtSchema = new mongoose.Schema({
 });
 
 const Thought = mongoose.model("Thought", thoughtSchema);
+//User model
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String, 
+    required: [true, "Username is required"],
+    unique: true,
+    minlength: [3, "Username must be at least 3 characters"],
+    maxlength: [20, "Username must be max 20 characters"]
+  },
+  password: {
+    type: String,
+    required: [true, "Password is required"], 
+    minlength: [6, "Password must be at least 6 characters"]
+  },
+  accessToken: {
+    type: String,
+    default: () => crypto.randomBytes(16).toString("hex")
+  }
+});
+
+const User = mongoose.model("User", userSchema);
+
+// ----- Middleware for authentication -----  
+const authenticateUser = async (req, res, next) => {
+  const accessToken = req.header("Authorization");
+  try {
+    const user = await User.findOne({ accessToken });
+    if (user) {
+      req.user = user;
+      next();
+    } else {
+      res.status(401).json({ message: "Please log in" });
+    }
+  } catch (err) {
+    res.status(403).json({ message: "Access denied" });
+  }
+};
+
+// ----- User Registration -----
+app.post("/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (password.length < 5) {
+      return res.status(400).json({ message: "Password must be at least 5 characters long" });
+    }
+
+    const salt = bcrypt.genSaltSync();
+    const hashedPassword = bcrypt.hashSync(password, salt);
+
+    const newUser = await new User({
+      username,
+      password: hashedPassword
+    }).save();
+
+    res.status(201).json({
+      username: newUser.username,
+      accessToken: newUser.accessToken
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      res.status(400).json({ message: "That username already exists" });
+    } else {
+      res.status(500).json({ message: "Internal server error", error: err });
+    }
+  }
+});
+// ----- User Login -----
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username });
+
+  if (!user) {
+    return res.status(400).json({ message: "Username or password is incorrect" });
+  }
+
+  if (bcrypt.compareSync(password, user.password)) {
+    res.json({
+      username: user.username,
+      accessToken: user.accessToken
+    });
+  } else {
+    res.status(400).json({ message: "Username or password is incorrect" });
+  }
+});
 
 
 // API Docs----- Routes -----
@@ -112,45 +199,61 @@ app.get("/thoughts/:id", async (req, res) => {
   }
 });
 
-// Create a new thought
-app.post("/thoughts", async (req, res) => {
+// Create new thought (authenticated)
+app.post("/thoughts", authenticateUser, async (req, res) => {
   try {
     const { message, category } = req.body;
-    const newThought = new Thought({ message, category });
+    const newThought = new Thought({
+      message,
+      category,
+      createdBy: req.user.username
+    });
+
     const savedThought = await newThought.save();
     res.status(201).json(savedThought);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ message: "Could not save thought", error: err });
   }
 });
 
 // Update a thought
-app.put("/thoughts/:id", async (req, res) => {
+app.patch("/thoughts/:id", authenticateUser, async (req, res) => {
   try {
-    const updatedThought = await Thought.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!updatedThought) {
-      return res.status(404).json({ error: "Thought not found" });
+    const thought = await Thought.findById(req.params.id);
+
+    if (!thought) {
+      return res.status(404).json({ message: "Thought not found" });
     }
-    res.json(updatedThought);
+
+    if (thought.createdBy !== req.user.username) {
+      return res.status(403).json({ message: "Not allowed to edit this thought" });
+    }
+
+    thought.message = req.body.message || thought.message;
+    await thought.save();
+    res.json(thought);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ message: "Could not update thought", error: err });
   }
 });
 
 // Delete a thought
-app.delete("/thoughts/:id", async (req, res) => {
+app.delete("/thoughts/:id", authenticateUser, async (req, res) => {
   try {
-    const deletedThought = await Thought.findByIdAndDelete(req.params.id);
-    if (!deletedThought) {
-      return res.status(404).json({ error: "Thought not found" });
+    const thought = await Thought.findById(req.params.id);
+
+    if (!thought) {
+      return res.status(404).json({ message: "Thought not found" });
     }
-    res.json({ success: true });
+
+    if (thought.createdBy !== req.user.username) {
+      return res.status(403).json({ message: "Not allowed to delete this thought" });
+    }
+
+    await thought.deleteOne();
+    res.json({ message: "Thought deleted successfully" });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ message: "Could not delete thought", error: err });
   }
 });
 
