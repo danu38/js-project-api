@@ -2,11 +2,10 @@ import cors from "cors";
 import express from "express";
 import listEndpoints from "express-list-endpoints";
 import fs, { access } from "fs";
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-
 
 // Load environment variables from .env file
 // This allows  to set environment variables like PORT and MONGO_URL
@@ -23,10 +22,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//let thoughts = JSON.parse(fs.readFileSync('./data.json'));     
+//let thoughts = JSON.parse(fs.readFileSync('./data.json'));
 
-
-const mongoUrl = process.env.MONGO_URL || "mongodb://localhost:27017/happythoughts";
+const mongoUrl =
+  process.env.MONGO_URL || "mongodb://localhost:27017/happythoughts";
 
 // Connect to MongoDB
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -38,48 +37,54 @@ const thoughtSchema = new mongoose.Schema({
     type: String,
     required: [true, "Message is required"],
     minlength: [5, "Message must be at least 5 characters"],
-    maxlength: [140, "Message must be max 140 characters"]
+    maxlength: [140, "Message must be max 140 characters"],
   },
   hearts: {
     type: Number,
-    default: 0
+    default: 0,
   },
   category: {
     type: String,
-    default: "General"
+    default: "General",
   },
+  createdBy: { 
+    type: String, 
+    required: true },
   createdAt: {
     type: Date,
-    default: () => new Date()
-  }
+    default: () => new Date(),
+  },
 });
 
 const Thought = mongoose.model("Thought", thoughtSchema);
 //User model
 const userSchema = new mongoose.Schema({
   username: {
-    type: String, 
+    type: String,
     required: [true, "Username is required"],
     unique: true,
     minlength: [3, "Username must be at least 3 characters"],
-    maxlength: [20, "Username must be max 20 characters"]
+    maxlength: [20, "Username must be max 20 characters"],
   },
   password: {
     type: String,
-    required: [true, "Password is required"], 
-    minlength: [6, "Password must be at least 6 characters"]
+    required: [true, "Password is required"],
+    minlength: [6, "Password must be at least 6 characters"],
   },
   accessToken: {
     type: String,
-    default: () => crypto.randomBytes(16).toString("hex")
-  }
+    default: () => crypto.randomBytes(16).toString("hex"),
+  },
 });
 
 const User = mongoose.model("User", userSchema);
 
-// ----- Middleware for authentication -----  
+// ----- Middleware for authentication -----
 const authenticateUser = async (req, res, next) => {
-  const accessToken = req.header("Authorization");
+  const raw = req.header("Authorization") || "";
+  // accept "Bearer <token>" OR raw "<token>"
+  const accessToken = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
+
   try {
     const user = await User.findOne({ accessToken });
     if (user) {
@@ -99,7 +104,9 @@ app.post("/register", async (req, res) => {
     const { username, password } = req.body;
 
     if (password.length < 5) {
-      return res.status(400).json({ message: "Password must be at least 5 characters long" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 5 characters long" });
     }
 
     const salt = bcrypt.genSaltSync();
@@ -107,12 +114,12 @@ app.post("/register", async (req, res) => {
 
     const newUser = await new User({
       username,
-      password: hashedPassword
+      password: hashedPassword,
     }).save();
 
     res.status(201).json({
       username: newUser.username,
-      accessToken: newUser.accessToken
+      accessToken: newUser.accessToken,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -128,25 +135,26 @@ app.post("/login", async (req, res) => {
   const user = await User.findOne({ username });
 
   if (!user) {
-    return res.status(400).json({ message: "Username or password is incorrect" });
+    return res
+      .status(400)
+      .json({ message: "Username or password is incorrect" });
   }
 
   if (bcrypt.compareSync(password, user.password)) {
     res.json({
       username: user.username,
-      accessToken: user.accessToken
+      accessToken: user.accessToken,
     });
   } else {
     res.status(400).json({ message: "Username or password is incorrect" });
   }
 });
 
-
 // API Docs----- Routes -----
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to the Happy Thoughts API 💬",
-    endpoints: listEndpoints(app)
+    endpoints: listEndpoints(app),
   });
 });
 
@@ -178,13 +186,12 @@ app.get("/thoughts", async (req, res) => {
 
     res.json({
       page: pageInt,
-      results: thoughts
+      results: thoughts,
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch thoughts" });
   }
 });
-
 
 // Get single thought
 app.get("/thoughts/:id", async (req, res) => {
@@ -206,7 +213,7 @@ app.post("/thoughts", authenticateUser, async (req, res) => {
     const newThought = new Thought({
       message,
       category,
-      createdBy: req.user.username
+      createdBy: req.user.username,
     });
 
     const savedThought = await newThought.save();
@@ -226,7 +233,9 @@ app.patch("/thoughts/:id", authenticateUser, async (req, res) => {
     }
 
     if (thought.createdBy !== req.user.username) {
-      return res.status(403).json({ message: "Not allowed to edit this thought" });
+      return res
+        .status(403)
+        .json({ message: "Not allowed to edit this thought" });
     }
 
     thought.message = req.body.message || thought.message;
@@ -247,7 +256,9 @@ app.delete("/thoughts/:id", authenticateUser, async (req, res) => {
     }
 
     if (thought.createdBy !== req.user.username) {
-      return res.status(403).json({ message: "Not allowed to delete this thought" });
+      return res
+        .status(403)
+        .json({ message: "Not allowed to delete this thought" });
     }
 
     await thought.deleteOne();
@@ -278,6 +289,3 @@ app.post("/thoughts/:id/like", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
-
-
-
